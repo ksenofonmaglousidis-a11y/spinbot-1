@@ -30,6 +30,8 @@ const DM_SIDE_IMAGE_URL =
   "https://i.ibb.co/QFPFt4b6/Gemini-Generated-Image-removebg-preview-removebg-preview.png";
 
 const UNLIMITED_SPINS_ROLE_ID = "1480671765909733472";
+const ALLOWED_CHANNEL_ID = "1493149839805120602";
+const BRAND_COLOR = 0x2ecc70;
 
 if (!TOKEN) {
   console.error("Missing DISCORD_TOKEN in .env");
@@ -44,7 +46,7 @@ const rewards = [
     emoji: "❌",
     chance: 50,
     rarity: "Common",
-    color: 0x5865f2,
+    color: BRAND_COLOR,
     win: false
   },
   {
@@ -52,7 +54,7 @@ const rewards = [
     emoji: "🎟️",
     chance: 25,
     rarity: "Rare",
-    color: 0x8b5cf6,
+    color: BRAND_COLOR,
     win: true,
     couponDiscount: "25%",
     couponValidFor: "2 days"
@@ -62,7 +64,7 @@ const rewards = [
     emoji: "⭐",
     chance: 10,
     rarity: "Epic",
-    color: 0x8b5cf6,
+    color: BRAND_COLOR,
     win: true
   },
   {
@@ -70,7 +72,7 @@ const rewards = [
     emoji: "🔥",
     chance: 10,
     rarity: "Legendary",
-    color: 0x8b5cf6,
+    color: BRAND_COLOR,
     win: true
   },
   {
@@ -78,7 +80,7 @@ const rewards = [
     emoji: "💎",
     chance: 5,
     rarity: "Diamond",
-    color: 0x8b5cf6,
+    color: BRAND_COLOR,
     win: true
   }
 ];
@@ -95,9 +97,9 @@ function pickReward() {
   return rewards[0];
 }
 
-function generateCouponCode(length = 8) {
+function generateCouponCode(length = 5) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let result = "MRPL-";
+  let result = "NIRO-";
 
   for (let i = 0; i < length; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -135,8 +137,8 @@ function hasUnlimitedSpins(member) {
 }
 
 function buildSpinEmbed(message, reward) {
-  const embed = new EmbedBuilder()
-    .setColor(0x8b5cf6)
+  return new EmbedBuilder()
+    .setColor(BRAND_COLOR)
     .setTitle("🎰 Spin Result")
     .setDescription(`${reward.emoji} ${message.author} spun the wheel!`)
     .addFields(
@@ -161,12 +163,6 @@ function buildSpinEmbed(message, reward) {
     )
     .setFooter({ text: "Niro Market Spin System" })
     .setTimestamp();
-
-  if (BANNER_URL) {
-    embed.setImage(BANNER_URL);
-  }
-
-  return embed;
 }
 
 function buildChancesEmbed(message) {
@@ -174,8 +170,8 @@ function buildChancesEmbed(message) {
     (reward) => `${reward.emoji} **${reward.name}** — ${reward.chance}%`
   );
 
-  const embed = new EmbedBuilder()
-    .setColor(0x8b5cf6)
+  return new EmbedBuilder()
+    .setColor(BRAND_COLOR)
     .setTitle("🎰 Spin Chances")
     .setDescription(lines.join("\n"))
     .addFields({
@@ -188,24 +184,16 @@ function buildChancesEmbed(message) {
     )
     .setFooter({ text: "Niro Market Chances" })
     .setTimestamp();
-
-  if (BANNER_URL) {
-    embed.setImage(BANNER_URL);
-  }
-
-  return embed;
 }
 
 function buildCouponDmEmbed(user, couponCode, reward) {
   return new EmbedBuilder()
-    .setColor(0x8b5cf6)
+    .setColor(BRAND_COLOR)
     .setAuthor({
       name: "Marketplace"
     })
     .setTitle("🎟️ Marketplace Discount Coupon")
-    .setDescription(
-      `🔴 Hello ${user}, here is your discount coupon!`
-    )
+    .setDescription(`🔴 Hello ${user}, here is your discount coupon!`)
     .addFields(
       {
         name: "📉 Discount",
@@ -225,18 +213,18 @@ function buildCouponDmEmbed(user, couponCode, reward) {
     )
     .setThumbnail(DM_SIDE_IMAGE_URL)
     .setFooter({
-      text: "Coupon is valid ONLY for bots & tools !"
+      text: "Coupon is valid ONLY for bots & tools!"
     })
     .setTimestamp();
 }
 
 function buildRewardDmEmbed(user, reward) {
   return new EmbedBuilder()
-    .setColor(0x8b5cf6)
+    .setColor(BRAND_COLOR)
     .setAuthor({
       name: "Marketplace"
     })
-    .setTitle(`🎁 Reward Claimed`)
+    .setTitle("🎁 Reward Claimed")
     .setDescription(`🔴 Hello ${user}, you won a reward!`)
     .addFields(
       {
@@ -265,7 +253,7 @@ async function sendLog(message, reward, dmStatus) {
     if (!logChannel) return;
 
     const embed = new EmbedBuilder()
-      .setColor(0x8b5cf6)
+      .setColor(BRAND_COLOR)
       .setTitle("📝 Spin Log")
       .addFields(
         {
@@ -308,6 +296,10 @@ client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.guild) return;
   if (!message.content.startsWith(PREFIX)) return;
 
+  if (message.channel.id !== ALLOWED_CHANNEL_ID) {
+    return;
+  }
+
   const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
   const command = args.shift()?.toLowerCase();
 
@@ -325,9 +317,7 @@ client.on("messageCreate", async (message) => {
 
       if (remaining > 0) {
         await message.reply(
-          `⏳ You need to wait **${formatDuration(
-            remaining
-          )}** before spinning again.`
+          `⏳ You need to wait **${formatDuration(remaining)}** before spinning again.`
         );
         return;
       }
@@ -348,7 +338,7 @@ client.on("messageCreate", async (message) => {
     if (reward.win) {
       try {
         if (reward.name === "Coupon Code") {
-          const couponCode = generateCouponCode(6);
+          const couponCode = generateCouponCode(5);
           const couponEmbed = buildCouponDmEmbed(
             message.author,
             couponCode,
