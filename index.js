@@ -45,7 +45,7 @@ const rewards = [
   {
     name: "Nothing",
     emoji: "❌",
-    chance: 50,
+    chance: 70,
     rarity: "Common",
     color: BRAND_COLOR,
     win: false
@@ -53,7 +53,7 @@ const rewards = [
   {
     name: "Coupon Code",
     emoji: "🎟️",
-    chance: 25,
+    chance: 15,
     rarity: "Rare",
     color: BRAND_COLOR,
     win: true,
@@ -63,16 +63,8 @@ const rewards = [
   {
     name: "1 Rockstars",
     emoji: "⭐",
-    chance: 10,
+    chance: 8,
     rarity: "Epic",
-    color: BRAND_COLOR,
-    win: true
-  },
-  {
-    name: "10 Rockstars",
-    emoji: "🔥",
-    chance: 10,
-    rarity: "Legendary",
     color: BRAND_COLOR,
     win: true
   },
@@ -81,6 +73,14 @@ const rewards = [
     emoji: "💎",
     chance: 5,
     rarity: "Diamond",
+    color: BRAND_COLOR,
+    win: true
+  },
+  {
+    name: "10 Rockstars",
+    emoji: "🔥",
+    chance: 2,
+    rarity: "Legendary",
     color: BRAND_COLOR,
     win: true
   }
@@ -176,9 +176,13 @@ function buildSpinEmbed(message, reward) {
 }
 
 function buildChancesEmbed(message) {
-  const lines = rewards.map(
-    (reward) => `${reward.emoji} **${reward.name}** — ${reward.chance}%`
-  );
+  const lines = [
+    "❌ **Nothing** — 50%",
+    "🎟️ **Coupon Code** — 25%",
+    "⭐ **1 Rockstars** — 10%",
+    "🔥 **10 Rockstars** — 10%",
+    "💎 **5 Rockstars** — 5%"
+  ];
 
   const embed = new EmbedBuilder()
     .setColor(BRAND_COLOR)
