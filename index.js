@@ -144,7 +144,7 @@ function buildSpinEmbed(message, reward) {
   const embed = new EmbedBuilder()
     .setColor(BRAND_COLOR)
     .setTitle("🎰 Spin Result")
-    .setDescription(`${reward.emoji} ${message.author} spun the wheel!`)
+    .setDescription(`${reward.emoji} ${message.author} spin the wheel!`)
     .addFields(
       {
         name: "👤 Player",
@@ -205,8 +205,8 @@ function buildChancesEmbed(message) {
 function buildCouponDmEmbed(user, couponCode, reward) {
   return new EmbedBuilder()
     .setColor(BRAND_COLOR)
-    .setAuthor({ name: "Marketplace" })
-    .setTitle("🎟️ Marketplace Discount Coupon")
+    .setAuthor({ name: "Niro Market" })
+    .setTitle("🎟️ Niro Market Discount Coupon")
     .setDescription(`🔴 Hello ${user}, here is your discount coupon!`)
     .addFields(
       {
@@ -235,7 +235,7 @@ function buildCouponDmEmbed(user, couponCode, reward) {
 function buildRewardDmEmbed(user, reward) {
   return new EmbedBuilder()
     .setColor(BRAND_COLOR)
-    .setAuthor({ name: "Marketplace" })
+    .setAuthor({ name: "Niro Market" })
     .setTitle("🎁 Reward Claimed")
     .setDescription(`🔴 Hello ${user}, you won a reward!`)
     .addFields(
