@@ -21,6 +21,7 @@ const TOKEN = process.env.DISCORD_TOKEN;
 const PREFIX = process.env.PREFIX || "!";
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || "";
 const COOLDOWN_MINUTES = Number(process.env.COOLDOWN_MINUTES || 60);
+
 const BANNER_URL =
   process.env.BANNER_URL ||
   "https://i.ibb.co/fd9yngNN/Gemini-Generated-Image-1.png";
@@ -91,7 +92,9 @@ function pickReward() {
 
   for (const reward of rewards) {
     current += reward.chance;
-    if (roll <= current) return reward;
+    if (roll <= current) {
+      return reward;
+    }
   }
 
   return rewards[0];
@@ -113,6 +116,7 @@ function getRemainingCooldown(userId) {
   const expiresAt = cooldowns.get(userId);
 
   if (!expiresAt) return 0;
+
   if (now >= expiresAt) {
     cooldowns.delete(userId);
     return 0;
@@ -137,14 +141,14 @@ function hasUnlimitedSpins(member) {
 }
 
 function buildSpinEmbed(message, reward) {
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(BRAND_COLOR)
     .setTitle("🎰 Spin Result")
     .setDescription(`${reward.emoji} ${message.author} spun the wheel!`)
     .addFields(
       {
         name: "👤 Player",
-        value: `${message.member?.displayName || message.author.username}`,
+        value: message.member?.displayName || message.author.username,
         inline: false
       },
       {
@@ -163,6 +167,12 @@ function buildSpinEmbed(message, reward) {
     )
     .setFooter({ text: "Niro Market Spin System" })
     .setTimestamp();
+
+  if (BANNER_URL) {
+    embed.setImage(BANNER_URL);
+  }
+
+  return embed;
 }
 
 function buildChancesEmbed(message) {
@@ -170,13 +180,13 @@ function buildChancesEmbed(message) {
     (reward) => `${reward.emoji} **${reward.name}** — ${reward.chance}%`
   );
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(BRAND_COLOR)
     .setTitle("🎰 Spin Chances")
     .setDescription(lines.join("\n"))
     .addFields({
       name: "👤 Player",
-      value: `${message.member?.displayName || message.author.username}`,
+      value: message.member?.displayName || message.author.username,
       inline: false
     })
     .setThumbnail(
@@ -184,14 +194,18 @@ function buildChancesEmbed(message) {
     )
     .setFooter({ text: "Niro Market Chances" })
     .setTimestamp();
+
+  if (BANNER_URL) {
+    embed.setImage(BANNER_URL);
+  }
+
+  return embed;
 }
 
 function buildCouponDmEmbed(user, couponCode, reward) {
   return new EmbedBuilder()
     .setColor(BRAND_COLOR)
-    .setAuthor({
-      name: "Marketplace"
-    })
+    .setAuthor({ name: "Marketplace" })
     .setTitle("🎟️ Marketplace Discount Coupon")
     .setDescription(`🔴 Hello ${user}, here is your discount coupon!`)
     .addFields(
@@ -221,9 +235,7 @@ function buildCouponDmEmbed(user, couponCode, reward) {
 function buildRewardDmEmbed(user, reward) {
   return new EmbedBuilder()
     .setColor(BRAND_COLOR)
-    .setAuthor({
-      name: "Marketplace"
-    })
+    .setAuthor({ name: "Marketplace" })
     .setTitle("🎁 Reward Claimed")
     .setDescription(`🔴 Hello ${user}, you won a reward!`)
     .addFields(
@@ -247,6 +259,7 @@ function buildRewardDmEmbed(user, reward) {
 
 async function sendLog(message, reward, dmStatus) {
   if (!LOG_CHANNEL_ID) return;
+  if (!reward.win) return;
 
   try {
     const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
@@ -293,70 +306,84 @@ client.once("ready", () => {
 });
 
 client.on("messageCreate", async (message) => {
-  if (message.author.bot || !message.guild) return;
-  if (!message.content.startsWith(PREFIX)) return;
+  try {
+    if (message.author.bot || !message.guild) return;
+    if (!message.content.startsWith(PREFIX)) return;
 
-  if (message.channel.id !== ALLOWED_CHANNEL_ID) {
-    return;
-  }
-
-  const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
-  const command = args.shift()?.toLowerCase();
-
-  if (command === "chances") {
-    const embed = buildChancesEmbed(message);
-    await message.reply({ embeds: [embed] });
-    return;
-  }
-
-  if (command === "spin") {
-    const unlimited = hasUnlimitedSpins(message.member);
-
-    if (!unlimited) {
-      const remaining = getRemainingCooldown(message.author.id);
-
-      if (remaining > 0) {
-        await message.reply(
-          `⏳ You need to wait **${formatDuration(remaining)}** before spinning again.`
-        );
-        return;
-      }
-
-      cooldowns.set(
-        message.author.id,
-        Date.now() + COOLDOWN_MINUTES * 60 * 1000
-      );
+    if (message.channel.id !== ALLOWED_CHANNEL_ID) {
+      return;
     }
 
-    const reward = pickReward();
-    const embed = buildSpinEmbed(message, reward);
+    const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
+    const command = args.shift()?.toLowerCase();
 
-    await message.reply({ embeds: [embed] });
+    if (command === "chances") {
+      const embed = buildChancesEmbed(message);
+      await message.reply({ embeds: [embed] });
+      return;
+    }
 
-    let dmStatus = "No DM sent";
+    if (command === "spin") {
+      const unlimited = hasUnlimitedSpins(message.member);
 
-    if (reward.win) {
-      try {
-        if (reward.name === "Coupon Code") {
-          const couponCode = generateCouponCode(5);
-          const couponEmbed = buildCouponDmEmbed(
-            message.author,
-            couponCode,
-            reward
-          );
-          await message.author.send({ embeds: [couponEmbed] });
-        } else {
-          const rewardEmbed = buildRewardDmEmbed(message.author, reward);
-          await message.author.send({ embeds: [rewardEmbed] });
+      if (!unlimited) {
+        const remaining = getRemainingCooldown(message.author.id);
+
+        if (remaining > 0) {
+          await message.reply({
+            content: `⏳ You need to wait **${formatDuration(
+              remaining
+            )}** before spinning again.`
+          });
+          return;
         }
 
-        dmStatus = "DM sent successfully";
-      } catch (error) {
-        dmStatus = "DM failed";
+        cooldowns.set(
+          message.author.id,
+          Date.now() + COOLDOWN_MINUTES * 60 * 1000
+        );
+      }
+
+      const reward = pickReward();
+      const embed = buildSpinEmbed(message, reward);
+
+      await message.reply({ embeds: [embed] });
+
+      let dmStatus = "No DM sent";
+
+      if (reward.win) {
+        try {
+          if (reward.name === "Coupon Code") {
+            const couponCode = generateCouponCode(5);
+            const couponEmbed = buildCouponDmEmbed(
+              message.author,
+              couponCode,
+              reward
+            );
+            await message.author.send({ embeds: [couponEmbed] });
+          } else {
+            const rewardEmbed = buildRewardDmEmbed(message.author, reward);
+            await message.author.send({ embeds: [rewardEmbed] });
+          }
+
+          dmStatus = "DM sent successfully";
+        } catch (error) {
+          dmStatus = "DM failed";
+          console.error("DM send error:", error);
+        }
+
+        await sendLog(message, reward, dmStatus);
       }
     }
+  } catch (error) {
+    console.error("Message handler error:", error);
 
-    await sendLog(message, reward, dmStatus);
+    try {
+      await message.reply({
+        content: "An error occurred while processing your command."
+      });
+    } catch {
+    }
   }
 });
 
