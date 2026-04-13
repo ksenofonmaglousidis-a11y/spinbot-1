@@ -231,7 +231,7 @@ function buildCouponDmEmbed(user, couponCode, reward) {
     )
     .setThumbnail(DM_SIDE_IMAGE_URL)
     .setFooter({
-      text: "Coupon is valid ONLY for bots & tools!"
+      text: "Coupon is valid ONLY for orders over 5€ open ticket to collect it !"
     })
     .setTimestamp();
 }
