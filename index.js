@@ -31,6 +31,7 @@ const DM_SIDE_IMAGE_URL =
   "https://i.ibb.co/QFPFt4b6/Gemini-Generated-Image-removebg-preview-removebg-preview.png";
 
 const UNLIMITED_SPINS_ROLE_ID = "1480671765909733472";
+const REQUIRED_ROLE_ID = "1480671765889024111"; // ✅ TO ROLE SOU
 const ALLOWED_CHANNEL_ID = "1493149839805120602";
 const BRAND_COLOR = 0x2ecc70;
 
@@ -45,7 +46,7 @@ const rewards = [
   {
     name: "Nothing",
     emoji: "❌",
-    chance: 70,
+    chance: 50,
     rarity: "Common",
     color: BRAND_COLOR,
     win: false
@@ -53,17 +54,17 @@ const rewards = [
   {
     name: "Coupon Code",
     emoji: "🎟️",
-    chance: 15,
+    chance: 25,
     rarity: "Rare",
     color: BRAND_COLOR,
     win: true,
-    couponDiscount: "25%",
+    couponDiscount: "10%",
     couponValidFor: "2 days"
   },
   {
-    name: "1 Rockstars",
+    name: "10 steams",
     emoji: "⭐",
-    chance: 8,
+    chance: 15,
     rarity: "Epic",
     color: BRAND_COLOR,
     win: true
@@ -71,20 +72,24 @@ const rewards = [
   {
     name: "5 Rockstars",
     emoji: "💎",
-    chance: 5,
+    chance: 7,
     rarity: "Diamond",
     color: BRAND_COLOR,
     win: true
   },
   {
-    name: "10 Rockstars",
+    name: "Promo Code Gen",
     emoji: "🔥",
-    chance: 2,
+    chance: 3,
     rarity: "Legendary",
     color: BRAND_COLOR,
     win: true
   }
 ];
+
+function hasRequiredRole(member) {
+  return member?.roles?.cache?.has(REQUIRED_ROLE_ID);
+}
 
 function pickReward() {
   const roll = Math.random() * 100;
@@ -179,9 +184,9 @@ function buildChancesEmbed(message) {
   const lines = [
     "❌ **Nothing** — 50%",
     "🎟️ **Coupon Code** — 25%",
-    "⭐ **1 Rockstars** — 10%",
-    "🔥 **10 Rockstars** — 10%",
-    "💎 **5 Rockstars** — 5%"
+    "⭐ **10 Steams** — 10%",
+    "🔥 **5 Rockstars** — 10%",
+    "💎 **Promo Code Gen** — 5%"
   ];
 
   const embed = new EmbedBuilder()
@@ -314,7 +319,13 @@ client.on("messageCreate", async (message) => {
     if (message.author.bot || !message.guild) return;
     if (!message.content.startsWith(PREFIX)) return;
 
-    if (message.channel.id !== ALLOWED_CHANNEL_ID) {
+    if (message.channel.id !== ALLOWED_CHANNEL_ID) return;
+
+    // ✅ ROLE CHECK
+    if (!hasRequiredRole(message.member)) {
+      await message.reply({
+        content: "❌ You don't have permission to use this command."
+      });
       return;
     }
 
@@ -386,8 +397,7 @@ client.on("messageCreate", async (message) => {
       await message.reply({
         content: "An error occurred while processing your command."
       });
-    } catch {
-    }
+    } catch {}
   }
 });
 
