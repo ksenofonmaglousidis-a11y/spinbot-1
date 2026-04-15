@@ -20,7 +20,10 @@ const client = new Client({
 const TOKEN = process.env.DISCORD_TOKEN;
 const PREFIX = process.env.PREFIX || "!";
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || "";
-const COOLDOWN_MINUTES = Number(process.env.COOLDOWN_MINUTES || 60);
+
+const REQUIRED_ROLE_ID = "1480671765889024111";
+const COOLDOWN_WITH_ROLE_MINUTES = 120; // 2 hours
+const COOLDOWN_WITHOUT_ROLE_MINUTES = 240; // 4 hours
 
 const BANNER_URL =
   process.env.BANNER_URL ||
@@ -31,7 +34,6 @@ const DM_SIDE_IMAGE_URL =
   "https://i.ibb.co/QFPFt4b6/Gemini-Generated-Image-removebg-preview-removebg-preview.png";
 
 const UNLIMITED_SPINS_ROLE_ID = "1480671765909733472";
-const REQUIRED_ROLE_ID = "1480671765889024111"; // ✅ TO ROLE SOU
 const ALLOWED_CHANNEL_ID = "1493149839805120602";
 const BRAND_COLOR = 0x2ecc70;
 
@@ -145,6 +147,12 @@ function hasUnlimitedSpins(member) {
   return member?.roles?.cache?.has(UNLIMITED_SPINS_ROLE_ID);
 }
 
+function getCooldownMinutes(member) {
+  return hasRequiredRole(member)
+    ? COOLDOWN_WITH_ROLE_MINUTES
+    : COOLDOWN_WITHOUT_ROLE_MINUTES;
+}
+
 function buildSpinEmbed(message, reward) {
   const embed = new EmbedBuilder()
     .setColor(BRAND_COLOR)
@@ -184,9 +192,9 @@ function buildChancesEmbed(message) {
   const lines = [
     "❌ **Nothing** — 50%",
     "🎟️ **Coupon Code** — 25%",
-    "⭐ **10 Steams** — 10%",
-    "🔥 **5 Rockstars** — 10%",
-    "💎 **Promo Code Gen** — 5%"
+    "⭐ **10 Steams** — 15%",
+    "💎 **5 Rockstars** — 7%",
+    "🔥 **Promo Code Gen** — 3%"
   ];
 
   const embed = new EmbedBuilder()
@@ -321,14 +329,6 @@ client.on("messageCreate", async (message) => {
 
     if (message.channel.id !== ALLOWED_CHANNEL_ID) return;
 
-    // ✅ ROLE CHECK
-    if (!hasRequiredRole(message.member)) {
-      await message.reply({
-        content: "❌ You don't have permission to use this command."
-      });
-      return;
-    }
-
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
     const command = args.shift()?.toLowerCase();
 
@@ -353,9 +353,11 @@ client.on("messageCreate", async (message) => {
           return;
         }
 
+        const cooldownMinutes = getCooldownMinutes(message.member);
+
         cooldowns.set(
           message.author.id,
-          Date.now() + COOLDOWN_MINUTES * 60 * 1000
+          Date.now() + cooldownMinutes * 60 * 1000
         );
       }
 
