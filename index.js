@@ -48,7 +48,7 @@ const rewards = [
   {
     name: "Nothing",
     emoji: "❌",
-    chance: 60,
+    chance: 65,
     rarity: "Common",
     color: BRAND_COLOR,
     win: false
@@ -66,7 +66,7 @@ const rewards = [
   {
     name: "10 steams",
     emoji: "⭐",
-    chance: 10,
+    chance: 7,
     rarity: "Epic",
     color: BRAND_COLOR,
     win: true
@@ -74,7 +74,7 @@ const rewards = [
   {
     name: "5 Rockstars",
     emoji: "💎",
-    chance: 7,
+    chance: 5,
     rarity: "Diamond",
     color: BRAND_COLOR,
     win: true
