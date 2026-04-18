@@ -57,7 +57,7 @@ const DM_SIDE_IMAGE_URL =
   process.env.DM_SIDE_IMAGE_URL ||
   "https://i.ibb.co/QFPFt4b6/Gemini-Generated-Image-removebg-preview-removebg-preview.png";
 
-const BRAND_COLOR = 0x2596be;
+const BRAND_COLOR = 0x2ecc70;
 
 if (!TOKEN) {
   console.error("Missing DISCORD_TOKEN in .env");
