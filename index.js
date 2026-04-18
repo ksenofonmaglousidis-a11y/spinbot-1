@@ -78,7 +78,7 @@ const rewards = [
   {
     name: "Coupon Code",
     emoji: "🎟️",
-    chance: 0,
+    chance: 1,
     rarity: "Rare",
     color: BRAND_COLOR,
     win: true,
