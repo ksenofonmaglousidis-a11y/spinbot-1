@@ -15,7 +15,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildMembers
   ],
   partials: [Partials.Channel]
 });
@@ -38,6 +39,16 @@ const REQUIRED_ROLE_ID = "1480671765889024111";
 const COOLDOWN_WITH_ROLE_MINUTES = 120;
 const COOLDOWN_WITHOUT_ROLE_MINUTES = 240;
 
+const UNLIMITED_SPINS_ROLE_ID = "1480671765909733472";
+const ALLOWED_CHANNEL_ID = "1493149839805120602";
+
+const VOUCH_CHANNEL_ID = "1480671767939776740";
+const PROMO_ROLE_ID = "1494867239256719540";
+const PROMO_DOWNLOAD_LINK =
+  "https://www.mediafire.com/file/t4prubhbyjzz617/NiroMarket-Promo-Gen.rar/file";
+const PROMO_ZIP_CODE = "niro2026";
+const REQUIRED_VOUCH_TEXT = "+rep legit spin reward";
+
 const BANNER_URL =
   process.env.BANNER_URL ||
   "https://i.ibb.co/fd9yngNN/Gemini-Generated-Image-1.png";
@@ -46,8 +57,6 @@ const DM_SIDE_IMAGE_URL =
   process.env.DM_SIDE_IMAGE_URL ||
   "https://i.ibb.co/QFPFt4b6/Gemini-Generated-Image-removebg-preview-removebg-preview.png";
 
-const UNLIMITED_SPINS_ROLE_ID = "1480671765909733472";
-const ALLOWED_CHANNEL_ID = "1493149839805120602";
 const BRAND_COLOR = 0x94eac3;
 
 if (!TOKEN) {
@@ -349,13 +358,18 @@ function buildCouponDmEmbed(user, couponCode, reward, expirationDate) {
     .setTimestamp();
 }
 
-function buildRewardDmEmbed(user, reward) {
+function buildTicketDmEmbed(user, reward) {
   return new EmbedBuilder()
     .setColor(BRAND_COLOR)
     .setAuthor({ name: "Niro Market" })
     .setTitle("🎁 Reward Claimed")
-    .setDescription(`🔴 Hello ${user}, you won a reward!`)
+    .setDescription(`🔴 Hello ${user}, you won **${reward.name}**!`)
     .addFields(
+      {
+        name: "📩 Next Step",
+        value: "Please open a ticket in the server to claim your reward.",
+        inline: false
+      },
       {
         name: "🎁 Reward",
         value: `${reward.emoji} ${reward.name}`,
@@ -368,10 +382,102 @@ function buildRewardDmEmbed(user, reward) {
       }
     )
     .setThumbnail(DM_SIDE_IMAGE_URL)
-    .setFooter({
-      text: "Thank you for using Niro Market!"
-    })
+    .setFooter({ text: "Niro Market Rewards" })
     .setTimestamp();
+}
+
+function buildPromoDmEmbed(user) {
+  return new EmbedBuilder()
+    .setColor(BRAND_COLOR)
+    .setAuthor({ name: "Niro Market" })
+    .setTitle("🔥 Promo Code Gen Reward")
+    .setDescription(`🔴 Hello ${user}, you won the Promo Code Gen reward!`)
+    .addFields(
+      {
+        name: "📥 Download Link",
+        value: PROMO_DOWNLOAD_LINK,
+        inline: false
+      },
+      {
+        name: "🎭 Role",
+        value: `You already received the role <@&${PROMO_ROLE_ID}>.`,
+        inline: false
+      },
+      {
+        name: "📝 To get the ZIP code",
+        value:
+          `Send this exact message in <#${VOUCH_CHANNEL_ID}>:\n\`${REQUIRED_VOUCH_TEXT}\``,
+        inline: false
+      },
+      {
+        name: "✅ Final Step",
+        value:
+          "After sending the vouch, press the button below so I can verify it and send you the ZIP code.",
+        inline: false
+      }
+    )
+    .setThumbnail(DM_SIDE_IMAGE_URL)
+    .setFooter({ text: "Niro Market Promo Reward" })
+    .setTimestamp();
+}
+
+function buildPromoVerifyButton(userId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`verifypromo_${userId}`)
+      .setLabel("Verify Vouch")
+      .setEmoji("✅")
+      .setStyle(ButtonStyle.Success)
+  );
+}
+
+function buildPromoCodeDmEmbed() {
+  return new EmbedBuilder()
+    .setColor(BRAND_COLOR)
+    .setAuthor({ name: "Niro Market" })
+    .setTitle("✅ Vouch Verified")
+    .setDescription("Your vouch was verified successfully.")
+    .addFields(
+      {
+        name: "📥 Download Link",
+        value: PROMO_DOWNLOAD_LINK,
+        inline: false
+      },
+      {
+        name: "🔐 ZIP Code",
+        value: `\`${PROMO_ZIP_CODE}\``,
+        inline: false
+      }
+    )
+    .setThumbnail(DM_SIDE_IMAGE_URL)
+    .setFooter({ text: "Thank you for the vouch!" })
+    .setTimestamp();
+}
+
+async function hasValidVouch(userId) {
+  const channel = await client.channels.fetch(VOUCH_CHANNEL_ID);
+  if (!channel || !channel.isTextBased()) {
+    throw new Error("Vouch channel not found.");
+  }
+
+  const messages = await channel.messages.fetch({ limit: 100 });
+  return messages.some((msg) => {
+    if (msg.author.bot) return false;
+    if (msg.author.id !== userId) return false;
+    return msg.content.trim().toLowerCase() === REQUIRED_VOUCH_TEXT.toLowerCase();
+  });
+}
+
+async function grantPromoRole(member) {
+  if (!member || !member.roles) {
+    throw new Error("Member not found for promo role.");
+  }
+
+  if (member.roles.cache.has(PROMO_ROLE_ID)) {
+    return;
+  }
+
+  await member.roles.add(PROMO_ROLE_ID, "Won Promo Code Gen spin reward");
 }
 
 async function sendLog(user, member, reward, dmStatus, extraFields = []) {
@@ -479,20 +585,45 @@ async function processSpin({ user, member, channel }) {
             inline: true
           }
         );
-      } else {
-        const rewardEmbed = buildRewardDmEmbed(user, reward);
-        await user.send({ embeds: [rewardEmbed] });
+      } else if (reward.name === "10 steams" || reward.name === "5 Rockstars") {
+        const ticketEmbed = buildTicketDmEmbed(user, reward);
+        await user.send({ embeds: [ticketEmbed] });
+      } else if (reward.name === "Promo Code Gen") {
+        await grantPromoRole(member);
+
+        const promoEmbed = buildPromoDmEmbed(user);
+        const promoButton = buildPromoVerifyButton(user.id);
+
+        await user.send({
+          embeds: [promoEmbed],
+          components: [promoButton]
+        });
+
+        extraLogFields.push(
+          {
+            name: "Promo Link",
+            value: PROMO_DOWNLOAD_LINK,
+            inline: false
+          },
+          {
+            name: "Role Granted",
+            value: `<@&${PROMO_ROLE_ID}>`,
+            inline: false
+          }
+        );
       }
 
       dmStatus = "DM sent successfully";
     } catch (error) {
-      dmStatus = "DM failed or coupon creation failed";
+      dmStatus = "DM failed or reward action failed";
       console.error("Reward send error:", error);
 
       await channel.send({
         content:
           reward.name === "Coupon Code"
             ? `${user} ❌ The coupon could not be created in SellAuth. Check your API settings in .env.`
+            : reward.name === "Promo Code Gen"
+            ? `${user} ❌ There was a problem granting the promo reward or sending the DM.`
             : `${user} ❌ There was a problem sending your reward DM.`
       });
     }
@@ -543,49 +674,103 @@ client.on("messageCreate", async (message) => {
 client.on("interactionCreate", async (interaction) => {
   try {
     if (!interaction.isButton()) return;
-    if (!interaction.customId.startsWith("spin_")) return;
 
-    const ownerId = interaction.customId.split("_")[1];
+    if (interaction.customId.startsWith("spin_")) {
+      const ownerId = interaction.customId.split("_")[1];
 
-    if (interaction.user.id !== ownerId) {
-      await interaction.reply({
-        content: "❌ This spin button is not for you.",
-        ephemeral: true
+      if (interaction.user.id !== ownerId) {
+        await interaction.reply({
+          content: "❌ This spin button is not for you.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (!interaction.guild || interaction.channel.id !== ALLOWED_CHANNEL_ID) {
+        await interaction.reply({
+          content: "❌ You cannot use this button here.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      const member = interaction.member;
+
+      await interaction.deferUpdate();
+      await interaction.message.delete().catch(() => {});
+
+      await processSpin({
+        user: interaction.user,
+        member,
+        channel: interaction.channel
       });
+
       return;
     }
 
-    if (!interaction.guild || interaction.channel.id !== ALLOWED_CHANNEL_ID) {
-      await interaction.reply({
-        content: "❌ You cannot use this button here.",
-        ephemeral: true
+    if (interaction.customId.startsWith("verifypromo_")) {
+      const ownerId = interaction.customId.split("_")[1];
+
+      if (interaction.user.id !== ownerId) {
+        await interaction.reply({
+          content: "❌ This button is not for you.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      await interaction.deferUpdate();
+
+      const validVouch = await hasValidVouch(interaction.user.id);
+
+      if (!validVouch) {
+        await interaction.followUp({
+          content:
+            `❌ I could not find your vouch in <#${VOUCH_CHANNEL_ID}>.\n` +
+            `Make sure you sent exactly: \`${REQUIRED_VOUCH_TEXT}\``,
+          ephemeral: true
+        }).catch(async () => {
+          await interaction.user.send(
+            `❌ I could not find your vouch in <#${VOUCH_CHANNEL_ID}>.\n` +
+              `Make sure you sent exactly: \`${REQUIRED_VOUCH_TEXT}\``
+          ).catch(() => {});
+        });
+        return;
+      }
+
+      await interaction.user.send({
+        embeds: [buildPromoCodeDmEmbed()]
       });
+
+      const disabledRow = new ActionRowBuilder().addComponents(
+        ButtonBuilder.from(interaction.message.components[0].components[0]).setDisabled(true)
+      );
+
+      await interaction.message.edit({
+        components: [disabledRow]
+      }).catch(() => {});
+
+      await interaction.followUp({
+        content: "✅ Verified. I sent you the ZIP code in DM.",
+        ephemeral: true
+      }).catch(() => {});
+
       return;
     }
-
-    const member = interaction.member;
-
-    await interaction.deferUpdate();
-    await interaction.message.delete().catch(() => {});
-
-    await processSpin({
-      user: interaction.user,
-      member,
-      channel: interaction.channel
-    });
   } catch (error) {
     console.error("Interaction handler error:", error);
 
     try {
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({
-          content: "❌ An error occurred while processing the spin.",
+          content: "❌ An error occurred while processing the interaction.",
           ephemeral: true
         });
       } else {
-        await interaction.channel.send({
-          content: `${interaction.user} ❌ An error occurred while processing the spin.`
-        });
+        await interaction.followUp({
+          content: "❌ An error occurred while processing the interaction.",
+          ephemeral: true
+        }).catch(() => {});
       }
     } catch {}
   }
