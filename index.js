@@ -4,7 +4,10 @@ const {
   Client,
   GatewayIntentBits,
   Partials,
-  EmbedBuilder
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
 } = require("discord.js");
 
 const client = new Client({
@@ -32,8 +35,8 @@ const COUPON_MAX_USES_PER_CUSTOMER = Number(
 );
 
 const REQUIRED_ROLE_ID = "1480671765889024111";
-const COOLDOWN_WITH_ROLE_MINUTES = 120; // 2 hours
-const COOLDOWN_WITHOUT_ROLE_MINUTES = 240; // 4 hours
+const COOLDOWN_WITH_ROLE_MINUTES = 120;
+const COOLDOWN_WITHOUT_ROLE_MINUTES = 240;
 
 const BANNER_URL =
   process.env.BANNER_URL ||
@@ -45,7 +48,7 @@ const DM_SIDE_IMAGE_URL =
 
 const UNLIMITED_SPINS_ROLE_ID = "1480671765909733472";
 const ALLOWED_CHANNEL_ID = "1493149839805120602";
-const BRAND_COLOR = 0x2ecc70;
+const BRAND_COLOR = 0x94eac3;
 
 if (!TOKEN) {
   console.error("Missing DISCORD_TOKEN in .env");
@@ -104,6 +107,16 @@ function hasRequiredRole(member) {
   return member?.roles?.cache?.has(REQUIRED_ROLE_ID);
 }
 
+function hasUnlimitedSpins(member) {
+  return member?.roles?.cache?.has(UNLIMITED_SPINS_ROLE_ID);
+}
+
+function getCooldownMinutes(member) {
+  return hasRequiredRole(member)
+    ? COOLDOWN_WITH_ROLE_MINUTES
+    : COOLDOWN_WITHOUT_ROLE_MINUTES;
+}
+
 function pickReward() {
   const roll = Math.random() * 100;
   let current = 0;
@@ -154,25 +167,40 @@ function formatDuration(ms) {
   return `${seconds}s`;
 }
 
-function hasUnlimitedSpins(member) {
-  return member?.roles?.cache?.has(UNLIMITED_SPINS_ROLE_ID);
+function buildSpinPanelEmbed(user, member) {
+  return new EmbedBuilder()
+    .setColor(BRAND_COLOR)
+    .setTitle("🎡 Spin the Wheel 🎡")
+    .setDescription("Press the button to spin the wheel")
+    .addFields({
+      name: "👤 Spin From",
+      value: member?.displayName || user.username,
+      inline: false
+    })
+    .setThumbnail(DM_SIDE_IMAGE_URL)
+    .setFooter({ text: "Niro Market Spin System" })
+    .setTimestamp();
 }
 
-function getCooldownMinutes(member) {
-  return hasRequiredRole(member)
-    ? COOLDOWN_WITH_ROLE_MINUTES
-    : COOLDOWN_WITHOUT_ROLE_MINUTES;
+function buildSpinButton(userId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`spin_${userId}`)
+      .setEmoji("🎡")
+      .setLabel("Spin")
+      .setStyle(ButtonStyle.Secondary)
+  );
 }
 
-function buildSpinEmbed(message, reward) {
+function buildSpinResultEmbed(user, member, reward) {
   const embed = new EmbedBuilder()
     .setColor(BRAND_COLOR)
     .setTitle("🎰 Spin Result")
-    .setDescription(`${reward.emoji} ${message.author} spin the wheel!`)
+    .setDescription(`${reward.emoji} ${user} spun the wheel!`)
     .addFields(
       {
         name: "👤 Player",
-        value: message.member?.displayName || message.author.username,
+        value: member?.displayName || user.username,
         inline: false
       },
       {
@@ -186,9 +214,7 @@ function buildSpinEmbed(message, reward) {
         inline: false
       }
     )
-    .setThumbnail(
-      message.author.displayAvatarURL({ extension: "png", size: 512 })
-    )
+    .setThumbnail(user.displayAvatarURL({ extension: "png", size: 512 }))
     .setFooter({ text: "Niro Market Spin System" })
     .setTimestamp();
 
@@ -199,7 +225,7 @@ function buildSpinEmbed(message, reward) {
   return embed;
 }
 
-function buildChancesEmbed(message) {
+function buildChancesEmbed(user, member) {
   const lines = rewards.map(
     (reward) => `${reward.emoji} **${reward.name}** — ${reward.chance}%`
   );
@@ -210,12 +236,10 @@ function buildChancesEmbed(message) {
     .setDescription(lines.join("\n"))
     .addFields({
       name: "👤 Player",
-      value: message.member?.displayName || message.author.username,
+      value: member?.displayName || user.username,
       inline: false
     })
-    .setThumbnail(
-      message.author.displayAvatarURL({ extension: "png", size: 512 })
-    )
+    .setThumbnail(user.displayAvatarURL({ extension: "png", size: 512 }))
     .setFooter({ text: "Niro Market Chances" })
     .setTimestamp();
 
@@ -238,9 +262,7 @@ function getCouponExpirationDate() {
 
 async function createSellAuthCoupon() {
   if (!SELLAUTH_API_KEY || !SELLAUTH_SHOP_ID) {
-    throw new Error(
-      "Missing SELLAUTH_API_KEY or SELLAUTH_SHOP_ID in .env"
-    );
+    throw new Error("Missing SELLAUTH_API_KEY or SELLAUTH_SHOP_ID in .env");
   }
 
   const couponCode = generateCouponCode(6);
@@ -352,7 +374,7 @@ function buildRewardDmEmbed(user, reward) {
     .setTimestamp();
 }
 
-async function sendLog(message, reward, dmStatus, extraFields = []) {
+async function sendLog(user, member, reward, dmStatus, extraFields = []) {
   if (!LOG_CHANNEL_ID) return;
   if (!reward.win) return;
 
@@ -366,7 +388,12 @@ async function sendLog(message, reward, dmStatus, extraFields = []) {
       .addFields(
         {
           name: "User",
-          value: `${message.author.tag} (${message.author.id})`,
+          value: `${user.tag} (${user.id})`,
+          inline: false
+        },
+        {
+          name: "Display Name",
+          value: member?.displayName || user.username,
           inline: false
         },
         {
@@ -386,14 +413,91 @@ async function sendLog(message, reward, dmStatus, extraFields = []) {
         },
         ...extraFields
       )
-      .setThumbnail(
-        message.author.displayAvatarURL({ extension: "png", size: 512 })
-      )
+      .setThumbnail(user.displayAvatarURL({ extension: "png", size: 512 }))
       .setTimestamp();
 
     await logChannel.send({ embeds: [embed] });
   } catch (error) {
     console.error("Log send error:", error);
+  }
+}
+
+async function processSpin({ user, member, channel }) {
+  const unlimited = hasUnlimitedSpins(member);
+
+  if (!unlimited) {
+    const remaining = getRemainingCooldown(user.id);
+
+    if (remaining > 0) {
+      await channel.send({
+        content: `${user} ⏳ You need to wait **${formatDuration(
+          remaining
+        )}** before spinning again.`
+      });
+      return;
+    }
+
+    const cooldownMinutes = getCooldownMinutes(member);
+    cooldowns.set(user.id, Date.now() + cooldownMinutes * 60 * 1000);
+  }
+
+  const reward = pickReward();
+  const embed = buildSpinResultEmbed(user, member, reward);
+
+  await channel.send({ embeds: [embed] });
+
+  let dmStatus = "No DM sent";
+  const extraLogFields = [];
+
+  if (reward.win) {
+    try {
+      if (reward.name === "Coupon Code") {
+        const { couponCode, expirationDate } = await createSellAuthCoupon();
+        const couponEmbed = buildCouponDmEmbed(
+          user,
+          couponCode,
+          reward,
+          expirationDate
+        );
+
+        await user.send({ embeds: [couponEmbed] });
+
+        extraLogFields.push(
+          {
+            name: "Coupon Code",
+            value: `\`${couponCode}\``,
+            inline: false
+          },
+          {
+            name: "Minimum Order",
+            value: `${COUPON_MIN_ORDER_EUR}€`,
+            inline: true
+          },
+          {
+            name: "Expires",
+            value: expirationDate,
+            inline: true
+          }
+        );
+      } else {
+        const rewardEmbed = buildRewardDmEmbed(user, reward);
+        await user.send({ embeds: [rewardEmbed] });
+      }
+
+      dmStatus = "DM sent successfully";
+    } catch (error) {
+      dmStatus = "DM failed or coupon creation failed";
+      console.error("Reward send error:", error);
+
+      await channel.send({
+        content:
+          reward.name === "Coupon Code"
+            ? `${user} ❌ The coupon could not be created in SellAuth. Check your API settings in .env.`
+            : `${user} ❌ There was a problem sending your reward DM.`
+      });
+    }
+
+    await sendLog(user, member, reward, dmStatus, extraLogFields);
   }
 }
 
@@ -405,98 +509,25 @@ client.on("messageCreate", async (message) => {
   try {
     if (message.author.bot || !message.guild) return;
     if (!message.content.startsWith(PREFIX)) return;
-
     if (message.channel.id !== ALLOWED_CHANNEL_ID) return;
 
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
     const command = args.shift()?.toLowerCase();
 
     if (command === "chances") {
-      const embed = buildChancesEmbed(message);
+      const embed = buildChancesEmbed(message.author, message.member);
       await message.reply({ embeds: [embed] });
       return;
     }
 
     if (command === "spin") {
-      const unlimited = hasUnlimitedSpins(message.member);
+      const embed = buildSpinPanelEmbed(message.author, message.member);
+      const row = buildSpinButton(message.author.id);
 
-      if (!unlimited) {
-        const remaining = getRemainingCooldown(message.author.id);
-
-        if (remaining > 0) {
-          await message.reply({
-            content: `⏳ You need to wait **${formatDuration(
-              remaining
-            )}** before spinning again.`
-          });
-          return;
-        }
-
-        const cooldownMinutes = getCooldownMinutes(message.member);
-
-        cooldowns.set(
-          message.author.id,
-          Date.now() + cooldownMinutes * 60 * 1000
-        );
-      }
-
-      const reward = pickReward();
-      const embed = buildSpinEmbed(message, reward);
-
-      await message.reply({ embeds: [embed] });
-
-      let dmStatus = "No DM sent";
-      const extraLogFields = [];
-
-      if (reward.win) {
-        try {
-          if (reward.name === "Coupon Code") {
-            const { couponCode, expirationDate } = await createSellAuthCoupon();
-            const couponEmbed = buildCouponDmEmbed(
-              message.author,
-              couponCode,
-              reward,
-              expirationDate
-            );
-            await message.author.send({ embeds: [couponEmbed] });
-
-            extraLogFields.push(
-              {
-                name: "Coupon Code",
-                value: `\`${couponCode}\``,
-                inline: false
-              },
-              {
-                name: "Minimum Order",
-                value: `${COUPON_MIN_ORDER_EUR}€`,
-                inline: true
-              },
-              {
-                name: "Expires",
-                value: expirationDate,
-                inline: true
-              }
-            );
-          } else {
-            const rewardEmbed = buildRewardDmEmbed(message.author, reward);
-            await message.author.send({ embeds: [rewardEmbed] });
-          }
-
-          dmStatus = "DM sent successfully";
-        } catch (error) {
-          dmStatus = "DM failed or coupon creation failed";
-          console.error("Reward send error:", error);
-
-          await message.reply({
-            content:
-              reward.name === "Coupon Code"
-                ? "❌ The coupon could not be created in SellAuth. Check your API settings in .env."
-                : "❌ There was a problem sending your reward DM."
-          });
-        }
-
-        await sendLog(message, reward, dmStatus, extraLogFields);
-      }
+      await message.reply({
+        embeds: [embed],
+        components: [row]
+      });
     }
   } catch (error) {
     console.error("Message handler error:", error);
@@ -505,6 +536,57 @@ client.on("messageCreate", async (message) => {
       await message.reply({
         content: "An error occurred while processing your command."
       });
+    } catch {}
+  }
+});
+
+client.on("interactionCreate", async (interaction) => {
+  try {
+    if (!interaction.isButton()) return;
+    if (!interaction.customId.startsWith("spin_")) return;
+
+    const ownerId = interaction.customId.split("_")[1];
+
+    if (interaction.user.id !== ownerId) {
+      await interaction.reply({
+        content: "❌ This spin button is not for you.",
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (!interaction.guild || interaction.channel.id !== ALLOWED_CHANNEL_ID) {
+      await interaction.reply({
+        content: "❌ You cannot use this button here.",
+        ephemeral: true
+      });
+      return;
+    }
+
+    const member = interaction.member;
+
+    await interaction.deferUpdate();
+    await interaction.message.delete().catch(() => {});
+
+    await processSpin({
+      user: interaction.user,
+      member,
+      channel: interaction.channel
+    });
+  } catch (error) {
+    console.error("Interaction handler error:", error);
+
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: "❌ An error occurred while processing the spin.",
+          ephemeral: true
+        });
+      } else {
+        await interaction.channel.send({
+          content: `${interaction.user} ❌ An error occurred while processing the spin.`
+        });
+      }
     } catch {}
   }
 });
