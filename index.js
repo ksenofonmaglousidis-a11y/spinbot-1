@@ -57,7 +57,7 @@ const DM_SIDE_IMAGE_URL =
   process.env.DM_SIDE_IMAGE_URL ||
   "https://i.ibb.co/QFPFt4b6/Gemini-Generated-Image-removebg-preview-removebg-preview.png";
 
-const BRAND_COLOR = 0x2ecc70;
+const BRAND_COLOR = 0x94eac3;
 
 if (!TOKEN) {
   console.error("Missing DISCORD_TOKEN in .env");
@@ -241,7 +241,7 @@ function buildSpinResultEmbed(user, member, reward) {
 
 function buildChancesEmbed(user, member) {
   const lines = rewards.map(
-    (reward) => `${reward.emoji} **${reward.name}** — ${reward.chance}%`
+    (reward) => `${reward.emoji} **${reward.name}** — **${reward.displayChance}**`
   );
 
   const embed = new EmbedBuilder()
@@ -466,6 +466,7 @@ async function hasValidVouch(userId) {
   }
 
   const messages = await channel.messages.fetch({ limit: 100 });
+
   return messages.some((msg) => {
     if (msg.author.bot) return false;
     if (msg.author.id !== userId) return false;
@@ -628,8 +629,8 @@ async function processSpin({ user, member, channel }) {
           reward.name === "Coupon Code"
             ? `${user} ❌ The coupon could not be created in SellAuth. Check your API settings in .env.`
             : reward.name === "Promo Code Gen"
-            ? `${user} ❌ There was a problem granting the promo reward or sending the DM.`
-            : `${user} ❌ There was a problem sending your reward DM.`
+              ? `${user} ❌ There was a problem granting the promo reward or sending the DM.`
+              : `${user} ❌ There was a problem sending your reward DM.`
       });
     }
 
@@ -737,7 +738,7 @@ client.on("interactionCreate", async (interaction) => {
         }).catch(async () => {
           await interaction.user.send(
             `❌ I could not find your vouch in <#${VOUCH_CHANNEL_ID}>.\n` +
-              `Make sure you sent exactly: \`${REQUIRED_VOUCH_TEXT}\``
+            `Make sure you sent exactly: \`${REQUIRED_VOUCH_TEXT}\``
           ).catch(() => {});
         });
         return;
