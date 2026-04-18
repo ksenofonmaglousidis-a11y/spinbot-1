@@ -105,7 +105,7 @@ const rewards = [
   {
     name: "Promo Code Gen",
     emoji: "🔥",
-    chance: 1,
+    chance: 100,
     rarity: "Legendary",
     color: BRAND_COLOR,
     win: true
