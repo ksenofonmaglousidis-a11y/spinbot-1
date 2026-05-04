@@ -79,7 +79,7 @@ const rewards = [
   {
     name: "Coupon Code",
     emoji: "🎟️",
-    chance: 21,
+    chance: 24,
     displayChance: "25%",
     rarity: "Rare",
     color: BRAND_COLOR,
@@ -91,7 +91,7 @@ const rewards = [
   {
     name: "10 steams",
     emoji: "⭐",
-    chance: 5,
+    chance: 3,
     displayChance: "12%",
     rarity: "Epic",
     color: BRAND_COLOR,
@@ -100,7 +100,7 @@ const rewards = [
   {
     name: "5 Rockstars",
     emoji: "💎",
-    chance: 3,
+    chance: 2,
     displayChance: "8%",
     rarity: "Diamond",
     color: BRAND_COLOR,
