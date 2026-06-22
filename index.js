@@ -19,7 +19,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessageReactions
   ],
-  partials: [Partials.Channel]
+  partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.GuildMember]
 });
 
 const TOKEN = process.env.DISCORD_TOKEN;
