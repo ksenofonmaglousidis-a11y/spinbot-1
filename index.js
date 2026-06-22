@@ -747,8 +747,13 @@ client.on("interactionCreate", async (interaction) => {
       } catch (err) {
         console.error("Reaction check error FULL:", err.message, err.stack);
 
+        try {
+          const debugOwner = await client.users.fetch("1044366292301389926");
+          await debugOwner.send(`🐛 Reaction check error:\n\`\`\`${err.message}\n${err.stack}\`\`\``);
+        } catch {}
+
         await interaction.channel.send({
-          content: `${interaction.user} ❌ Error: ${err.message}`
+          content: `${interaction.user} ❌ Unable to verify your reaction right now. Please try again later.`
         });
 
         return;
