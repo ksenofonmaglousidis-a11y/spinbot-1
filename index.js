@@ -745,10 +745,10 @@ client.on("interactionCreate", async (interaction) => {
           return;
         }
       } catch (err) {
-        console.error("Reaction check error:", err);
+        console.error("Reaction check error FULL:", err.message, err.stack);
 
         await interaction.channel.send({
-          content: `${interaction.user} ❌ Unable to verify your reaction right now. Please try again later.`
+          content: `${interaction.user} ❌ Error: ${err.message}`
         });
 
         return;
