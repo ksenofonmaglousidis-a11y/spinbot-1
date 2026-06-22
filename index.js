@@ -16,7 +16,8 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessageReactions
   ],
   partials: [Partials.Channel]
 });
@@ -41,6 +42,11 @@ const COOLDOWN_WITHOUT_ROLE_MINUTES = 240;
 
 const UNLIMITED_SPINS_ROLE_ID = "1480671765909733472";
 const ALLOWED_CHANNEL_ID = "1493149839805120602";
+
+const REQUIRED_REACTION_MESSAGE_ID =
+  process.env.REQUIRED_REACTION_MESSAGE_ID;
+const REQUIRED_REACTION_CHANNEL_ID =
+  process.env.REQUIRED_REACTION_CHANNEL_ID;
 
 const VOUCH_CHANNEL_ID = "1480671767939776740";
 const PROMO_ROLE_ID = "1494867239256719540";
@@ -704,6 +710,49 @@ client.on("interactionCreate", async (interaction) => {
 
       await interaction.deferUpdate();
       await interaction.message.delete().catch(() => {});
+
+      try {
+        const reactionChannel = await interaction.guild.channels.fetch(
+          REQUIRED_REACTION_CHANNEL_ID
+        );
+
+        const targetMessage = await reactionChannel.messages.fetch(
+          REQUIRED_REACTION_MESSAGE_ID
+        );
+
+        let hasReacted = false;
+
+        // Re-fetch the message to get fresh, up-to-date reaction data
+        // (targetMessage may have stale/empty cache if bot just started)
+        const freshMessage = await reactionChannel.messages.fetch(
+          REQUIRED_REACTION_MESSAGE_ID
+        );
+
+        for (const reaction of freshMessage.reactions.cache.values()) {
+          const users = await reaction.users.fetch();
+
+          if (users.has(interaction.user.id)) {
+            hasReacted = true;
+            break;
+          }
+        }
+
+        if (!hasReacted) {
+          await interaction.channel.send({
+            content: `${interaction.user} ❌ You must react in <#${REQUIRED_REACTION_CHANNEL_ID}> before using the spin. Please react there and try again.`
+          });
+
+          return;
+        }
+      } catch (err) {
+        console.error("Reaction check error:", err);
+
+        await interaction.channel.send({
+          content: `${interaction.user} ❌ Unable to verify your reaction right now. Please try again later.`
+        });
+
+        return;
+      }
 
       await processSpin({
         user: interaction.user,
